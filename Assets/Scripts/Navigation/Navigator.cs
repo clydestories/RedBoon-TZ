@@ -235,7 +235,7 @@ public class Navigator : MonoBehaviour
 
             CheckEdgeCrossage(currentPosition, target, edgesAsList, i, ref currentEdgeCrosses);
 
-            _visual.DrawLine(currentPosition, edgeTarget, Color.green);
+            //_visual.DrawLine(currentPosition, edgeTarget, Color.green);
 
             if (currentEdgeCrosses >= bestPathEdgeCrosses)
             {

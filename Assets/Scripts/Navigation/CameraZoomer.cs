@@ -1,8 +1,11 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 [RequireComponent(typeof(Camera))]
 public class CameraZoomer : MonoBehaviour
 {
+    [SerializeField] private EventSystem _eventSystem;
+
     private Camera _camera;
 
     private void Awake()
@@ -14,11 +17,14 @@ public class CameraZoomer : MonoBehaviour
     {
         if (Input.mouseScrollDelta != Vector2.zero)
         {
-            _camera.orthographicSize -= Input.mouseScrollDelta.y;
-
-            if (_camera.orthographicSize < 0)
+            if (_eventSystem.IsPointerOverGameObject() == false)
             {
-                _camera.orthographicSize = 0;
+                _camera.orthographicSize -= Input.mouseScrollDelta.y;
+
+                if (_camera.orthographicSize < 0.1f)
+                {
+                    _camera.orthographicSize = 0.1f;
+                }
             }
         }
     }

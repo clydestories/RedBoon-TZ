@@ -1,0 +1,35 @@
+1{
+            new Rectangle(new Vector2(-15, 15), new Vector2(2, 25)),
+            new Rectangle(new Vector2(-3, 25), new Vector2(17, 35)),
+            new Rectangle(new Vector2(17, 20), new Vector2(37, 30)),
+            new Rectangle(new Vector2(37, 20), new Vector2(42, 30)),
+            new Rectangle(new Vector2(40, 30), new Vector2(50, 35)),
+
+            new Edge(
+                rectangles[0],
+                rectangles[1],
+                new Vector2(-3, 25),
+                new Vector2(2, 25)
+                ),
+
+            new Edge(
+                rectangles[1],
+                rectangles[2],
+                new Vector2(17, 25),
+                new Vector2(17, 30)
+                ),
+
+            new Edge(
+                rectangles[2],
+                rectangles[3],
+                new Vector2(37, 20),
+                new Vector2(37, 30)
+                ),
+
+            new Edge(
+                rectangles[3],
+                rectangles[4],
+                new Vector2(40, 30),
+                new Vector2(42, 30)
+                )
+}

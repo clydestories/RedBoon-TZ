@@ -1,6 +1,6 @@
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "SO/New item", fileName = "New item", order = 42)]
+[CreateAssetMenu(menuName = "SO/Trading/New item", fileName = "New item", order = 42)]
 public class ItemSO : ScriptableObject
 {
     [SerializeField] private Sprite _sprite;

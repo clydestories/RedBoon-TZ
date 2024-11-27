@@ -19,5 +19,6 @@ public class RectangleCell : IdBoundCell
         _maxXField.InputField.text = maxX.ToString();
         _maxYField.InputField.text = maxY.ToString();
         Id = index;
+        IdText.text = index.ToString();
     }
 }

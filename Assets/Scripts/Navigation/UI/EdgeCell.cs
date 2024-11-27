@@ -25,5 +25,6 @@ public class EdgeCell : IdBoundCell
         _firstRectangleIdField.InputField.text = firstRectangleId.ToString();
         _secondRectangleIdField.InputField.text = secondRectangleId.ToString();
         Id = index;
+        IdText.text = Id.ToString();
     }
 }

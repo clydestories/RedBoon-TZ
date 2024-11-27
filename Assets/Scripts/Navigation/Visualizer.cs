@@ -1,41 +1,34 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class Visualizer : MonoBehaviour
 {
-    private readonly Color _purple = new Color(1, 0, 1);
-
-    [SerializeField] private Material _lineMaterial;
+    [Header("Dependencies")]
     [SerializeField] private NavigationDataHolderSO _navData;
+    [SerializeField] private Execution _execution;
+    [SerializeField] private Material _lineMaterial;
+    [Header("Settings")]
     [SerializeField] private float _lineWidth;
     [SerializeField] private float _pointOffset;
+    [SerializeField] private Color _pointColor;
+    [SerializeField] private Color _rectangleColor;
+    [SerializeField] private Color _edgeColor;
+    [SerializeField] private Color _polylineColor;
+
+    private int _edgeSortingOrder = 5;
+    private int _pointSortingOrder = 10;
+    private int _polylineSortingOrder = 15;
 
     private void OnEnable()
     {
         _navData.FiguresChanged += DrawNavigationField;
+        _execution.ResultsReceived += DrawPolyline;
     }
 
     private void OnDisable()
     {
         _navData.FiguresChanged -= DrawNavigationField;
-    }
-
-    private void DrawNavigationField()
-    {
-        ClearLines();
-
-        DrawPoint(_navData.StartPosition, Color.yellow);
-        DrawPoint(_navData.FinishPosition, Color.yellow);
-
-        foreach (Rectangle rectangle in _navData.Rectangles)
-        {
-            DrawRectangle(rectangle, Color.red);
-        }
-
-        foreach (Edge edge in _navData.Edges)
-        {
-            LineRenderer line = DrawLine(edge.Start, edge.End, Color.green);
-            line.sortingOrder = 5;
-        }
+        _execution.ResultsReceived -= DrawPolyline;
     }
 
     public LineRenderer DrawLine(Vector2 start, Vector2 end, Color color)
@@ -46,20 +39,56 @@ public class Visualizer : MonoBehaviour
         return line;
     }
 
-    public void DrawRectangle(Rectangle rectangle, Color color)
+    public void DrawPolyline(List<Vector2> points)
     {
-        for (int i = 0; i < rectangle.corners.Count; i++)
+        for (int i = 0; i < points.Count - 1; i++)
         {
-            DrawLine(rectangle.corners[i], rectangle.corners[(i + 1) % rectangle.corners.Count], color);
+            LineRenderer line = DrawLine(points[i], points[i + 1], _polylineColor);
+            line.sortingOrder = _polylineSortingOrder;
         }
     }
 
-    public void DrawPoint(Vector2 center, Color color)
+    public void ClearLines()
+    {
+        foreach (LineRenderer line in GetComponentsInChildren<LineRenderer>())
+        {
+            Destroy(line.gameObject);
+        }
+    }
+
+    private void DrawNavigationField()
+    {
+        ClearLines();
+
+        DrawPoint(_navData.StartPosition, _pointColor);
+        DrawPoint(_navData.FinishPosition, _pointColor);
+
+        foreach (Rectangle rectangle in _navData.Rectangles)
+        {
+            DrawRectangle(rectangle, _rectangleColor);
+        }
+
+        foreach (Edge edge in _navData.Edges)
+        {
+            LineRenderer line = DrawLine(edge.Start, edge.End, _edgeColor);
+            line.sortingOrder = _edgeSortingOrder;
+        }
+    }
+
+    private void DrawRectangle(Rectangle rectangle, Color color)
+    {
+        for (int i = 0; i < rectangle.Corners.Count; i++)
+        {
+            DrawLine(rectangle.Corners[i], rectangle.Corners[(i + 1) % rectangle.Corners.Count], color);
+        }
+    }
+
+    private void DrawPoint(Vector2 center, Color color)
     {
         LineRenderer line = CreateLine(color);
         line.SetPosition(0, new Vector3(center.x - _pointOffset, center.y, 0));
         line.SetPosition(1, new Vector3(center.x + _pointOffset, center.y, 0));
-        line.sortingOrder = 10;
+        line.sortingOrder = _pointSortingOrder;
     }
 
     private LineRenderer CreateLine(Color color)
@@ -73,13 +102,5 @@ public class Visualizer : MonoBehaviour
         lineRenderer.endColor = color;
         lineRenderer.material = _lineMaterial;
         return lineRenderer;
-    }
-
-    public void ClearLines()
-    {
-        foreach (LineRenderer line in GetComponentsInChildren<LineRenderer>())
-        {
-            Destroy(line.gameObject);
-        }
     }
 }

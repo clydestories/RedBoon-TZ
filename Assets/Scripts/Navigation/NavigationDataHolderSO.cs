@@ -18,26 +18,16 @@ public class NavigationDataHolderSO : ScriptableObject
     public List<Edge> Edges => _edges.ToList();
     public List<Rectangle> Rectangles => _rectangles.ToList();
 
-    public void ChangeStartPositionX(float newX)
+    public void ChangeStartPosition(float newX, float newY)
     {
         _startPosition.x = newX;
-        FiguresChanged?.Invoke();
-    }
-
-    public void ChangeStartPositionY(float newY)
-    {
         _startPosition.y = newY;
         FiguresChanged?.Invoke();
     }
 
-    public void ChangeFinishPositionX(float newX)
+    public void ChangeFinishPosition(float newX, float newY)
     {
         _finishPosition.x = newX;
-        FiguresChanged?.Invoke();
-    }
-
-    public void ChangeFinishPositionY(float newY)
-    {
         _finishPosition.y = newY;
         FiguresChanged?.Invoke();
     }

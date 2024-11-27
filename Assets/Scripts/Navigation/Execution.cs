@@ -1,36 +1,79 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
 public class Execution : MonoBehaviour
 {
-    [SerializeField] private Visualizer _visualizer;
+    [Header("Dependencies")]
     [SerializeField] private NavigationDataHolderSO _navData;
-    [SerializeField] private float _step;
-
     [SerializeField] private Navigator _navigator;
+    [Header("Alert Messages")]
+    [SerializeField] private string _wrongEdgesAmountAlert;
+    [SerializeField] private string _wrongRectanglesAmountAlert;
+    [SerializeField] private string _equalRectanglesAlert;
+    [SerializeField] private string _equalEdgesAlert;
+    [SerializeField] private string _equalStartFinishAlert;
+
+    private int _minRectangleAmount = 2;
+
+    public event Action<List<Vector2>> ResultsReceived;
 
     public void Calculate()
     {
-        List<Rectangle> rectangles = _navData.Rectangles;
         List<Edge> edges = _navData.Edges;
         Vector2 start = _navData.StartPosition;
         Vector2 finish = _navData.FinishPosition;
 
-        IEnumerable<Vector2> result = _navigator.GetPath(start, finish, edges);
-        List<Vector2> resultAsList = result.ToList();
-
-        for (int i = 0; i < resultAsList.Count - 1; i++)
+        if (IsValidInput(out string message) == false)
         {
-            _visualizer.DrawLine(resultAsList[i], resultAsList[i + 1], Color.blue);
+            AlertSystem.Instance.SendAlert(message);
+            return;
         }
 
-        _visualizer.DrawPoint(start, Color.yellow);
-        _visualizer.DrawPoint(finish, Color.yellow);
+        IEnumerable<Vector2> results = _navigator.GetPath(start, finish, edges);
+        ResultsReceived?.Invoke(results.ToList());
+    }
 
-        foreach (Vector2 resulty in resultAsList)
+    private bool IsValidInput(out string message)
+    {
+        foreach (Rectangle rectangle in _navData.Rectangles)
         {
-            Debug.Log(resulty);
+            if (_navData.Rectangles.Where((testRectangle) => testRectangle.Equals(rectangle)).Count() > 1)
+            {
+                message = _equalRectanglesAlert;
+                return false;
+            }
         }
+
+        foreach (Edge edge in _navData.Edges)
+        {
+            if (_navData.Edges.Where((testEdge) => testEdge.Equals(edge)).Count() > 1)
+            {
+                message = _equalEdgesAlert;
+                return false;
+            }
+        }
+
+        if (_navData.StartPosition == _navData.FinishPosition)
+        {
+            message = _equalStartFinishAlert;
+            return false;
+        }
+
+        if (_navData.Rectangles.Count < _minRectangleAmount)
+        {
+            message = _wrongRectanglesAmountAlert;
+            return false;
+        }
+
+        if (_navData.Rectangles.Count - 1 != _navData.Edges.Count)
+        {
+            message = _wrongEdgesAmountAlert;
+            return false;
+        }
+
+        message = string.Empty;
+        return true;
     }
 }

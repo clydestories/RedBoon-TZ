@@ -2,10 +2,12 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-public class Navigator : MonoBehaviour
+public class Navigator : MonoBehaviour, IPathFinder
 {
     [SerializeField] private float _step;
-    [SerializeField] private Visualizer _visual;
+
+    private float _targetRayPoint = 999;
+    private Vector2 _targetDetectOffset = Vector2.one / 10;
 
     public IEnumerable<Vector2> GetPath(Vector2 A, Vector2 C, IEnumerable<Edge> edges)
     {
@@ -18,58 +20,47 @@ public class Navigator : MonoBehaviour
 
         for (int i = 0; i < edgesAsList.Count; i++)
         {
-            //Проверка на проход к C напрямую
-            if (CanReach(currentPosition, C, edgesAsList, 0))
+            if (CanReach(currentPosition, C, edgesAsList, i))
             {
                 break;
             }
 
-            //Из текущей точки проверяет все возможные пути через ближайший edge. Если есть такой, который проходит через 1+ последующий edge - пробегает по области от edge До конца
             int bestEdgeCrosses = 0;
-
             Vector2 bestTarget = GetBestTargetFromPoint(currentPosition, edgesAsList, i, out bestEdgeCrosses);
 
-            Debug.Log($"bestTarget {bestTarget}");
-            
-            if (bestEdgeCrosses > 0)
+            if (bestEdgeCrosses > 0)//Dont work yet
             {
                 Ray ray = new Ray(currentPosition, bestTarget - currentPosition);
-                Vector2 target = ray.GetPoint(999);
+                Vector2 target = ray.GetPoint(_targetRayPoint);
 
-                for (int j = i; j < edgesAsList[i + bestEdgeCrosses].Second.corners.Count; j++)
+                if (HasCleanCross(edgesAsList[i + bestEdgeCrosses], currentPosition, target, out int targetIndex))
                 {
-                    if (IsCrossing(currentPosition, target, edgesAsList[i + bestEdgeCrosses].Second.corners[j], edgesAsList[i + bestEdgeCrosses].Second.corners[(j + 1) % edgesAsList[i + bestEdgeCrosses].Second.corners.Count]))
-                    {
-                        if (IsCrossing(edgesAsList[i + bestEdgeCrosses].Second.corners[j], edgesAsList[i + bestEdgeCrosses].Second.corners[(j + 1) % edgesAsList[i + bestEdgeCrosses].Second.corners.Count], edgesAsList[i + bestEdgeCrosses].Start, edgesAsList[i + bestEdgeCrosses].End) == false)
-                        {
-                            currentPosition = GetCrossPoint(currentPosition, bestTarget, edgesAsList[i + bestEdgeCrosses].Second.corners[j], edgesAsList[i + bestEdgeCrosses].Second.corners[(j + 1) % edgesAsList[i + bestEdgeCrosses].Second.corners.Count]);
-                        }
-                    }
+                    Vector2 currentCorner = edgesAsList[i + bestEdgeCrosses].Second.Corners[targetIndex];
+                    Vector2 nextCorner = edgesAsList[i + bestEdgeCrosses].Second.Corners[(targetIndex + 1) % edgesAsList[i + bestEdgeCrosses].Second.Corners.Count];
+
+                    currentPosition = GetCrossPoint(currentPosition, bestTarget, currentCorner, nextCorner);
                 }
             }
             else
             {
                 Vector2 edgeCenter = Vector2.Lerp(edgesAsList[i].Start, edgesAsList[i].End, 0.5f);
                 Ray ray = new Ray(currentPosition, edgeCenter - currentPosition);
-                Vector2 target = ray.GetPoint(999);
+                Vector2 target = ray.GetPoint(_targetRayPoint);
                 Vector2 endOfSearchLine = Vector2.zero;
 
-                for (int j = 0; j < edgesAsList[i].Second.corners.Count; j++)
+                if (HasCleanCross(edgesAsList[i], currentPosition, target, out int targetIndex))
                 {
-                    if (IsCrossing(currentPosition, target, edgesAsList[i].Second.corners[j], edgesAsList[i].Second.corners[(j + 1) % edgesAsList[i].Second.corners.Count]))
-                    {
-                        if (IsParallel(edgesAsList[i].Second.corners[j], edgesAsList[i].Second.corners[(j + 1) % edgesAsList[i].Second.corners.Count], edgesAsList[i].Start, edgesAsList[i].End) == false)
-                        {
-                            endOfSearchLine = GetCrossPoint(currentPosition, target, edgesAsList[i].Second.corners[j], edgesAsList[i].Second.corners[(j + 1) % edgesAsList[i].Second.corners.Count]);
-                        }
-                    }
+                    Vector2 currentCorner = edgesAsList[i].Second.Corners[targetIndex];
+                    Vector2 nextCorner = edgesAsList[i].Second.Corners[(targetIndex + 1) % edgesAsList[i].Second.Corners.Count];
+
+                    endOfSearchLine = GetCrossPoint(currentPosition, target, currentCorner, nextCorner);
                 }
-                
+
                 Vector2 checkOrigin = edgeCenter;
                 Vector2 bestOrigin = checkOrigin;
-                int bestEverEdgeCrosses = 0;
+                int bestEdgeCrossesOverall = 0;
 
-                if (i < edgesAsList.Count - 1)
+                if (i < edgesAsList.Count)
                 {
                     bool directPathFound = false;
 
@@ -85,10 +76,10 @@ public class Navigator : MonoBehaviour
 
                         Vector2 newTarget = GetBestTargetFromPoint(checkOrigin, edgesAsList, i + 1, out bestEdgeCrosses);
 
-                        if (bestEdgeCrosses >= bestEverEdgeCrosses)
+                        if (bestEdgeCrosses >= bestEdgeCrossesOverall)
                         {
                             bestTarget = newTarget;
-                            bestEverEdgeCrosses = bestEdgeCrosses;
+                            bestEdgeCrossesOverall = bestEdgeCrosses;
                             bestOrigin = checkOrigin;
                         }
 
@@ -101,9 +92,7 @@ public class Navigator : MonoBehaviour
                         break;
                     }
 
-                    Debug.Log($"bestEverEdgeCrosses {bestEverEdgeCrosses}");
-
-                    if (bestEverEdgeCrosses == 0)
+                    if (bestEdgeCrossesOverall == 0)
                     {
                         bestTarget = edgeCenter;
                     }
@@ -119,17 +108,14 @@ public class Navigator : MonoBehaviour
                 }
 
                 Ray newRay = new Ray(bestOrigin, bestTarget - bestOrigin);
-                Vector2 currentTarget = newRay.GetPoint(999);
+                Vector2 currentTarget = newRay.GetPoint(_targetRayPoint);
 
-                for (int j = 0; j < edgesAsList[i + bestEverEdgeCrosses].Second.corners.Count; j++)
+                if (HasCleanCross(edgesAsList[i + bestEdgeCrossesOverall], currentPosition, target, out int currentTargetIndex))
                 {
-                    if (IsCrossing(currentPosition, target, edgesAsList[i + bestEverEdgeCrosses].Second.corners[j], edgesAsList[i + bestEverEdgeCrosses].Second.corners[(j + 1) % edgesAsList[i].Second.corners.Count]))
-                    {
-                        if (IsParallel(edgesAsList[i + bestEverEdgeCrosses].Second.corners[j], edgesAsList[i + bestEverEdgeCrosses].Second.corners[(j + 1) % edgesAsList[i].Second.corners.Count], edgesAsList[i + bestEverEdgeCrosses].Start, edgesAsList[i + bestEverEdgeCrosses].End) == false)
-                        {
-                            currentPosition = GetCrossPoint(currentPosition, bestTarget, edgesAsList[i + bestEverEdgeCrosses].Second.corners[j], edgesAsList[i + bestEverEdgeCrosses].Second.corners[(j + 1) % edgesAsList[i].Second.corners.Count]);
-                        }
-                    }
+                    Vector2 currentCorner = edgesAsList[i + bestEdgeCrossesOverall].Second.Corners[currentTargetIndex];
+                    Vector2 nextCorner = edgesAsList[i + bestEdgeCrossesOverall].Second.Corners[(currentTargetIndex + 1) % edgesAsList[i].Second.Corners.Count];
+
+                    currentPosition = GetCrossPoint(currentPosition, bestTarget, currentCorner, nextCorner);
                 }
             }
 
@@ -140,7 +126,33 @@ public class Navigator : MonoBehaviour
         return result;
     }
 
-    private bool IsParallel(Vector2 v1p1, Vector2 v1p2, Vector2 v2p1, Vector2 v2p2)
+    private bool HasCleanCross(Edge edge, Vector2 from, Vector2 to, out int targetIndex)
+    {
+        targetIndex = -1;
+
+        for (int j = 0; j < edge.Second.Corners.Count; j++)
+        {
+            Vector2 currentCorner = edge.Second.Corners[j];
+            Vector2 nextCorner = edge.Second.Corners[(j + 1) % edge.Second.Corners.Count];
+
+            if (IsCrossing(from, to, currentCorner, nextCorner))
+            {
+                if (IsCrossing(currentCorner, nextCorner, edge.Start, edge.End) == false)
+                {
+                    targetIndex = j;
+                }
+            }
+        }
+
+        if (targetIndex != -1)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool AreCollinear(Vector2 v1p1, Vector2 v1p2, Vector2 v2p1, Vector2 v2p2)
     {
         if (v1p1.x == v1p2.x)
         {
@@ -187,6 +199,7 @@ public class Navigator : MonoBehaviour
         rayDirection.Normalize();
 
         float det = rayDirection.x * (v2p2.y - v2p1.y) - rayDirection.y * (v2p2.x - v2p1.x);
+
         if (Mathf.Abs(det) < float.Epsilon)
         {
             return Vector3.zero;
@@ -233,9 +246,7 @@ public class Navigator : MonoBehaviour
 
             int currentEdgeCrosses = 0;
 
-            CheckEdgeCrossage(currentPosition, target, edgesAsList, i, ref currentEdgeCrosses);
-
-            //_visual.DrawLine(currentPosition, edgeTarget, Color.green);
+            CheckEdgeCrossage(currentPosition, target, edgesAsList, i, ref currentEdgeCrosses);//Dont work yet
 
             if (currentEdgeCrosses >= bestPathEdgeCrosses)
             {
@@ -281,39 +292,83 @@ public class Navigator : MonoBehaviour
                 continue;
             }
 
-            for (int i = 0; i < edge.First.corners.Count; i++)
+            for (int i = 0; i < edge.First.Corners.Count; i++)
             {
-                if (IsCrossing(currnentPosition, targetPosition, edge.First.corners[i], edge.First.corners[(i + 1) % edge.First.corners.Count]))
+                Vector2 currentCorner = edge.First.Corners[i];
+                Vector2 nextCorner = edge.First.Corners[(i + 1) % edge.First.Corners.Count];
+
+                if (IsCrossing(currnentPosition, targetPosition, currentCorner, nextCorner))
                 {
-                        if (IsParallel(edge.First.corners[i], edge.First.corners[(i + 1) % edge.First.corners.Count], edge.Start, edge.End) == false)
+                    if (AreCollinear(currentCorner, nextCorner, edge.Start, edge.End) == false)
+                    {
+                        if (edges.IndexOf(edge) - 1 >= 0)
                         {
-                            if (edges.IndexOf(edge) - 1 >= 0)
+                            if (AreCollinear(currentCorner, nextCorner, edges[edges.IndexOf(edge) - 1].Start, edges[edges.IndexOf(edge) - 1].End) == false)
                             {
-                                if (IsParallel(edge.First.corners[i], edge.First.corners[(i + 1) % edge.First.corners.Count], edges[edges.IndexOf(edge) - 1].Start, edges[edges.IndexOf(edge) - 1].End) == false)
+                                if (IsCrossing(targetPosition - _targetDetectOffset, targetPosition + _targetDetectOffset, currentCorner, nextCorner) == false)
                                 {
-                                    if (IsCrossing(targetPosition - Vector2.one / 10, targetPosition + Vector2.one / 10, edge.First.corners[i], edge.First.corners[(i + 1) % edge.First.corners.Count]) == false)
-                                    {
-                                        return false;
-                                    }
+                                    return false;
                                 }
                             }
                         }
                         else
                         {
-                            if (IsCrossing(currnentPosition, targetPosition, edge.Start, edge.End) == false)
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        if (IsCrossing(currnentPosition, targetPosition, edge.Start, edge.End) == false)
+                        {
+                            return false;
+                        }
+                    }
+                }
+            }
+
+            for (int i = 0; i < edge.Second.Corners.Count; i++)
+            {
+                Vector2 currentCorner = edge.Second.Corners[i];
+                Vector2 nextCorner = edge.Second.Corners[(i + 1) % edge.Second.Corners.Count];
+
+                if (IsCrossing(currnentPosition, targetPosition, currentCorner, nextCorner))
+                {
+                    if (AreCollinear(currentCorner, nextCorner, edge.Start, edge.End) == false)
+                    {
+                        if (edges.IndexOf(edge) - 1 >= 0)
+                        {
+                            if (AreCollinear(currentCorner, nextCorner, edges[edges.IndexOf(edge) - 1].Start, edges[edges.IndexOf(edge) - 1].End) == false)
                             {
-                                return false;
+                                if (IsCrossing(targetPosition - _targetDetectOffset, targetPosition + _targetDetectOffset, currentCorner, nextCorner) == false)
+                                {
+                                    return false;
+                                }
                             }
                         }
+                        else
+                        {
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        if (IsCrossing(currnentPosition, targetPosition, edge.Start, edge.End) == false)
+                        {
+                            return false;
+                        }
+                    }
                 }
             }
         }
+
+        Debug.Log("canReach");
+
         return true;
     }
 
-    private void CheckEdgeCrossage(Vector2 currentPosition, Vector2 target, List<Edge> edgesAsList, int index, ref int bestPathEdgeCrosses)
+    private void CheckEdgeCrossage(Vector2 currentPosition, Vector2 target, List<Edge> edgesAsList, int index, ref int bestPathEdgeCrosses)//Dont work yet
     {
-        bestPathEdgeCrosses = 0;
+        return;
         if (index + 1 < edgesAsList.Count)
         {
             if (IsCrossing(currentPosition, target, edgesAsList[index + 1].Start, edgesAsList[index + 1].End))

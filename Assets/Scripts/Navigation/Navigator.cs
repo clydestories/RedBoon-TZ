@@ -239,10 +239,10 @@ public class Navigator : MonoBehaviour, IPathFinder
             edgeEnd = edgesAsList[i].End.x;
         }
 
-        while ((edgeTarget - edgesAsList[i].End).magnitude > 0.1f)
+        while ((edgeTarget - edgesAsList[i].End).magnitude > _step)
         {
             Ray ray = new Ray(currentPosition, edgeTarget - currentPosition);
-            Vector2 target = ray.GetPoint(999);
+            Vector2 target = ray.GetPoint(_targetRayPoint);
 
             int currentEdgeCrosses = 0;
 
@@ -360,8 +360,6 @@ public class Navigator : MonoBehaviour, IPathFinder
                 }
             }
         }
-
-        Debug.Log("canReach");
 
         return true;
     }
